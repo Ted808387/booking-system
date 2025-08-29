@@ -6,29 +6,30 @@
     <title>簡易預約系統 (Vue.js 版本)</title>
 
     <style>
-        body { font-family: 'Helvetica Neue', Arial, sans-serif; padding: 20px; }
-        #app { max-width: 900px; margin: 0 auto; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; padding: 20px; background-color: #f4f7f6; }
+        #app { max-width: 900px; margin: 0 auto; background: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
         .booking-form { max-width: 500px; margin: 20px auto; padding: 20px; border: 1px solid #ddd; border-radius: 8px; }
-        .booking-form h3 { margin-top: 0; }
+        .booking-form h3 { margin-top: 0; text-align: center; }
         .form-group { margin-bottom: 15px; }
-        .form-group label { display: block; margin-bottom: 5px; }
-        .form-group input, .form-group select { width: 100%; padding: 8px; box-sizing: border-box; }
-        .time-slots button { margin: 5px; padding: 10px; border: 1px solid #ccc; background: #fff; cursor: pointer; }
-        .time-slots button.selected { background: #007bff; color: #fff; }
-        .time-slots button:disabled { background: #eee; cursor: not-allowed; }
-        button[type="submit"] { width: 100%; padding: 10px; background: #28a745; color: #fff; border: none; border-radius: 5px; cursor: pointer; }
-        .message { margin-top: 15px; text-align: center; padding: 10px; border-radius: 5px; }
-        .message.success { color: #155724; background-color: #d4edda; border-color: #c3e6cb; }
-        .message.error { color: #721c24; background-color: #f8d7da; border-color: #f5c6cb; }
+        .form-group label { display: block; margin-bottom: 5px; font-weight: bold; }
+        .form-group input, .form-group select { width: 100%; padding: 10px; box-sizing: border-box; border: 1px solid #ccc; border-radius: 4px; }
+        .time-slots { text-align: center; }
+        .time-slots button { margin: 5px; padding: 10px 15px; border: 1px solid #ccc; background: #fff; cursor: pointer; border-radius: 4px; transition: all 0.2s ease-in-out; }
+        .time-slots button:hover { background: #e9ecef; }
+        .time-slots button.selected { background: #007bff; color: #fff; border-color: #007bff; }
+        .time-slots button:disabled { background: #eee; cursor: not-allowed; opacity: 0.6; }
+        button[type="submit"] { width: 100%; padding: 12px; background: #28a745; color: #fff; border: none; border-radius: 5px; cursor: pointer; font-size: 16px; font-weight: bold; }
+        button[type="submit"]:hover { background: #218838; }
     </style>
 
     <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
     <script src='https://unpkg.com/fullcalendar@6.1.11/index.global.min.js'></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 </head>
 <body>
 
     <div id="app">
-        <h2>預約日曆</h2>
+        <h2 style="text-align: center;">預約日曆</h2>
         <div id='calendar'></div>
 
         <div v-if="selectedDate" class="booking-form">
@@ -74,10 +75,6 @@
                     <input type="tel" id="phone" v-model.trim="booking.phone" required>
                 </div>
                 <button type="submit">確認預約</button>
-                
-                <div v-if="message.text" :class="['message', message.type]">
-                    {{ message.text }}
-                </div>
             </form>
         </div>
     </div>
@@ -86,7 +83,6 @@
     const { createApp } = Vue;
 
     createApp({
-        // 1. data: 應用程式的狀態管理中心
         data() {
             return {
                 GAS_URL: 'https://script.google.com/macros/s/AKfycbwcL-hZVaoN5a9p3Ms6IsDEj1NrqHzIT7ddV7tsHlomdUM59D6wSLDfloZqPwArGlXl/exec',
@@ -94,8 +90,8 @@
                 bookedTimes: [],
                 availableSlotsConfig: [],
                 calendar: null,
-                selectedDate: null, // 用來控制表單顯示
-                booking: { // 將所有表單欄位集中管理
+                selectedDate: null,
+                booking: { 
                     date: '',
                     time: '',
                     service: '',
@@ -103,16 +99,11 @@
                     email: '',
                     phone: ''
                 },
-                message: { text: '', type: '' } // success 或 error
             }
         },
-        // 2. computed: 根據 data 自動計算衍伸的資料
-        // 2. computed: 根據 data 自動計算衍伸的資料
         computed: {
             availableTimeSlots() {
                 if (!this.selectedDate) return [];
-
-                // *** 關鍵修正：直接將 JS 的星期 (0-6) 加 1，對應到試算表的 (1-7) ***
                 const dayOfWeekForSheet = new Date(this.selectedDate).getDay() + 1;
 
                 const daySlotsConfig = this.availableSlotsConfig.filter(
@@ -122,6 +113,7 @@
                 if (daySlotsConfig.length === 0) return [];
 
                 const allSlots = [];
+								console.log(this.bookedTimes)
                 daySlotsConfig.forEach(slot => {
                     let currentTime = new Date(`${this.selectedDate}T${slot.start}`);
                     const endTime = new Date(`${this.selectedDate}T${slot.end}`);
@@ -129,13 +121,14 @@
                     while (currentTime < endTime) {
                         const timeStr = currentTime.toTimeString().substring(0, 5);
                         const fullDateTimeStr = `${this.selectedDate}T${timeStr}`;
+												console.log(fullDateTimeStr)
 
                         allSlots.push({
                             time: timeStr,
                             isBooked: this.bookedTimes.includes(fullDateTimeStr)
                         });
 
-                        currentTime.setMinutes(currentTime.getMinutes() + 30); // 每半小時一個時段
+                        currentTime.setMinutes(currentTime.getMinutes() + 30);
                     }
                 });
                 return allSlots;
@@ -151,8 +144,17 @@
                 return '';
             }
         },
-        // 3. methods: 放置所有事件處理函式
         methods: {
+            showNotification(icon, title, text) {
+                Swal.fire({
+                    icon: icon,
+                    title: title,
+                    text: text,
+                    timer: 2500,
+                    timerProgressBar: true,
+                    showConfirmButton: false,
+                });
+            },
             async fetchInitialData() {
                 try {
                     const response = await fetch(`${this.GAS_URL}?action=getInitialData`);
@@ -162,16 +164,15 @@
                         this.bookedTimes = data.bookedTimes;
                         this.availableSlotsConfig = data.availableSlots;
                         
-                        // 預設選中第一個服務
                         if (this.services.length > 0) {
                             this.booking.service = this.services[0].name;
                         }
                     } else {
-                        throw new Error('後端資料格式不正確');
+                        throw new Error(data.message || '後端資料格式不正確');
                     }
                 } catch (error) {
                     console.error('獲取初始資料失敗:', error);
-                    this.message = { text: '系統載入失敗，請稍後再試。', type: 'error' };
+                    this.showNotification('error', '載入失敗', '無法獲取預約資料，請檢查後端是否部署成功或網路連線。');
                 }
             },
             initializeCalendar() {
@@ -179,7 +180,11 @@
                 this.calendar = new FullCalendar.Calendar(calendarEl, {
                     initialView: 'dayGridMonth',
                     locale: 'zh-tw',
-                    headerToolbar: { /* ... */ },
+                    headerToolbar: {
+                        left: 'prev,next today',
+                        center: 'title',
+                        right: 'dayGridMonth,timeGridWeek'
+                    },
                     dateClick: this.handleDateClick
                 });
                 this.calendar.render();
@@ -187,49 +192,53 @@
             handleDateClick(info) {
                 this.selectedDate = info.dateStr;
                 this.booking.date = info.dateStr;
-                this.booking.time = ''; // 重置選擇的時間
-                this.message.text = ''; // 清除舊訊息
+                this.booking.time = '';
             },
             selectTime(time) {
                 this.booking.time = time;
             },
             async submitBooking() {
                 if (!this.booking.time) {
-                    this.message = { text: '請先選擇一個時段！', type: 'error' };
+                    this.showNotification('warning', '提示', '請先選擇一個預約時段！');
                     return;
                 }
-
-                this.message = { text: '提交中...', type: '' };
+                
+                Swal.fire({
+                    title: '正在提交預約...',
+                    text: '請稍候',
+                    allowOutsideClick: false,
+                    didOpen: () => {
+                        Swal.showLoading();
+                    }
+                });
 
                 try {
                     const response = await fetch(this.GAS_URL, {
                         method: 'POST',
                         body: new URLSearchParams(this.booking),
-                        // body: JSON.stringify(this.booking),
-                        // headers: { 'Content-Type': 'application/json' },
                     });
                     const result = await response.json();
                     
                     if (result.success) {
-                        this.message = { text: '預約成功！我們將盡快與您確認。', type: 'success' };
-                        // 成功後更新已預約時間，並重置表單
+                        Swal.close();
+                        this.showNotification('success', '預約成功！', '我們將盡快與您確認，謝謝。');
+                        
                         this.bookedTimes.push(`${this.booking.date}T${this.booking.time}`);
-                        // 簡單重置
                         this.booking.name = '';
                         this.booking.email = '';
                         this.booking.phone = '';
-                        this.selectedDate = null; // 隱藏表單
+                        this.selectedDate = null;
                     } else {
                         throw new Error(result.message);
                     }
                 } catch (error) {
-                    this.message = { text: `預約失敗：${error.message}`, type: 'error' };
+                    Swal.close();
+                    this.showNotification('error', '預約失敗', error.message);
                 }
             }
         },
-        // 4. mounted: Vue 實例掛載到頁面後執行的鉤子函式
-        async mounted() {
-            await this.fetchInitialData();
+        mounted() {
+            this.fetchInitialData();
             this.initializeCalendar();
         }
     }).mount('#app');

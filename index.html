@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>簡易預約系統 (Vue.js 版本)</title>
+    <title>預約系統</title>
 
     <style>
         body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; background-color: #f4f7f6; }
@@ -44,7 +44,6 @@
             border: 1px solid rgba(0,0,0,0.1);
         }
 
-        /* --- Custom "Today" Styling for Week View --- */
         .fc-timeGridWeek-view .fc-day-today {
             background-color: transparent !important;
         }
@@ -54,7 +53,6 @@
             border-radius: 4px;
             padding: 4px;
         }
-
 
         @media (max-width: 600px) {
             #app { padding: 10px; }
@@ -66,6 +64,29 @@
             .booking-form { margin: 10px auto; padding: 15px; }
             .calendar-legend { flex-direction: column; gap: 10px; align-items: flex-start; }
         }
+
+        /* --- 新增：Loading 動畫樣式 --- */
+        .loading-container {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            min-height: 400px;
+            color: #6c757d;
+        }
+        .loader {
+            border: 8px solid #f3f3f3;
+            border-top: 8px solid #007bff;
+            border-radius: 50%;
+            width: 60px;
+            height: 60px;
+            animation: spin 1s linear infinite;
+            margin-bottom: 20px;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
     </style>
 
     <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
@@ -76,30 +97,36 @@
 
     <div id="app">
         <h2 class="booking-title" style="text-align: center;">預約日曆</h2>
-        <div id='calendar'></div>
+        
+        <div v-if="isLoading" class="loading-container">
+            <div class="loader"></div>
+            <p>正在載入預約資料，請稍候...</p>
+        </div>
 
-        <div v-if="currentView === 'timeGridWeek'" class="calendar-legend">
-            <div class="legend-item">
-                <div class="legend-color-box" style="background-color: #dcfce7;"></div>
-                <span>可預約時段</span>
-            </div>
-            <div class="legend-item">
-                <div class="legend-color-box" style="background-color: #ff9f89;"></div>
-                <span>已被預約</span>
-            </div>
-            <div class="legend-item">
-                <div class="legend-color-box" style="background-color: #f4f4f5;"></div>
-                <span>非服務時段</span>
-            </div>
-            <div class="legend-item">
-                <div class="legend-color-box" style="background-color: #fcf8e3;"></div>
-                <span>當日</span>
+        <div v-show="!isLoading">
+            <div id='calendar'></div>
+            <div v-if="currentView === 'timeGridWeek'" class="calendar-legend">
+                <div class="legend-item">
+                    <div class="legend-color-box" style="background-color: #dcfce7;"></div>
+                    <span>可預約時段</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color-box" style="background-color: #ff9f89;"></div>
+                    <span>已被預約</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color-box" style="background-color: #f4f4f5;"></div>
+                    <span>非服務時段</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color-box" style="background-color: #fcf8e3;"></div>
+                    <span>當日</span>
+                </div>
             </div>
         </div>
 
         <div v-if="selectedDate" class="booking-form">
             <h3>預約 {{ selectedDate }}</h3>
-            
             <div class="time-slots" v-if="!booking.time">
                 <h4>選擇時段</h4>
                 <template v-if="availableTimeSlots.length > 0">
@@ -116,14 +143,11 @@
                 </template>
                 <p v-else>{{ timeSlotMessage }}</p>
             </div>
-            
             <div class="form-group" v-if="booking.time">
                 <label>已選時段</label>
                 <input type="text" :value="booking.time" readonly disabled style="background-color: #e9ecef; text-align: center;">
             </div>
-
             <hr v-if="booking.time"/>
-
             <form @submit.prevent="submitBooking">
                 <div class="form-group">
                     <label for="service">選擇服務項目</label>
@@ -156,6 +180,8 @@
     createApp({
         data() {
             return {
+                // *** 新增 isLoading 狀態 ***
+                isLoading: true,
                 GAS_URL: 'https://script.google.com/macros/s/AKfycbwcL-hZVaoN5a9p3Ms6IsDEj1NrqHzIT7ddV7tsHlomdUM59D6wSLDfloZqPwArGlXl/exec',
                 services: [],
                 bookedTimes: [],
@@ -175,6 +201,7 @@
             }
         },
         computed: {
+            // 您的 computed properties 完全保留
             bookedEvents() {
                 return this.bookedTimes.map(startTimeStr => {
                     const startTime = new Date(startTimeStr);
@@ -239,6 +266,7 @@
             }
         },
         methods: {
+            // 您的 methods 完全保留，只修改 fetchInitialData 和 mounted
             showNotification(icon, title, text) {
                 Swal.fire({
                     icon: icon,
@@ -250,6 +278,7 @@
                 });
             },
             async fetchInitialData() {
+                this.isLoading = true;
                 try {
                     const response = await fetch(`${this.GAS_URL}?action=getInitialData`);
                     const data = await response.json();
@@ -264,6 +293,8 @@
                 } catch (error) {
                     console.error('獲取初始資料失敗:', error);
                     this.showNotification('error', '載入失敗', '無法獲取預約資料，請檢查後端是否部署成功或網路連線。');
+                } finally {
+                    this.isLoading = false;
                 }
             },
             initializeCalendar() {
@@ -311,12 +342,7 @@
             updateCalendarLayout() {
                 this.isMobileView = window.innerWidth <= 600;
                 let newToolbarOptions;
-                // if (this.isMobileView) {
-                //     newToolbarOptions = { left: 'prev,next', center: 'title', right: 'today' };
-                // } else {
-                //     newToolbarOptions = { left: 'prev,next today', center: 'title', right: 'dayGridMonth,timeGridWeek' };
-                // }
-								newToolbarOptions = { left: 'prev,next today', center: 'title', right: 'dayGridMonth,timeGridWeek' };
+                newToolbarOptions = { left: 'prev,next today', center: 'title', right: 'dayGridMonth,timeGridWeek' };
                 this.calendar.setOption('headerToolbar', newToolbarOptions);
             },
             handleDateClick(info) {
@@ -393,10 +419,13 @@
             }
         },
         mounted() {
+            // *** 修改 mounted 邏輯 ***
             this.fetchInitialData().then(() => {
-                this.initializeCalendar();
-                this.updateCalendarLayout();
-                window.addEventListener('resize', this.updateCalendarLayout);
+                this.$nextTick(() => {
+                    this.initializeCalendar();
+                    this.updateCalendarLayout();
+                    window.addEventListener('resize', this.updateCalendarLayout);
+                });
             });
         },
         beforeUnmount() {

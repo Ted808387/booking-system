@@ -6,7 +6,7 @@
     <title>簡易預約系統 (Vue.js 版本)</title>
 
     <style>
-        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; padding: 20px; background-color: #f4f7f6; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; background-color: #f4f7f6; }
         #app { max-width: 900px; margin: 0 auto; background: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
         .booking-form { max-width: 500px; margin: 20px auto; padding: 20px; border: 1px solid #ddd; border-radius: 8px; }
         .booking-form h3 { margin-top: 0; text-align: center; }
@@ -44,10 +44,25 @@
             border: 1px solid rgba(0,0,0,0.1);
         }
 
+        /* --- Custom "Today" Styling for Week View --- */
+        .fc-timeGridWeek-view .fc-day-today {
+            background-color: transparent !important;
+        }
+
+        .fc-timeGridWeek-view .fc-day-today .fc-col-header-cell-cushion {
+            background-color: #fcf8e3;
+            border-radius: 4px;
+            padding: 4px;
+        }
+
+
         @media (max-width: 600px) {
             #app { padding: 10px; }
-            .fc-header-toolbar .fc-toolbar-title { font-size: 1.25em; }
-            .fc-header-toolbar .fc-button { padding: 0.3em 0.5em; margin: 0 2px; font-size: 0.9em; }
+            .booking-title {
+              font-size: 1.2rem;
+            }
+            .fc-header-toolbar .fc-toolbar-title { font-size: 1.1em; }
+            .fc-header-toolbar .fc-button { padding: 0.2em 0.4em; margin: 0 2px; font-size: 0.8em; }
             .booking-form { margin: 10px auto; padding: 15px; }
             .calendar-legend { flex-direction: column; gap: 10px; align-items: flex-start; }
         }
@@ -60,7 +75,7 @@
 <body>
 
     <div id="app">
-        <h2 style="text-align: center;">預約日曆</h2>
+        <h2 class="booking-title" style="text-align: center;">預約日曆</h2>
         <div id='calendar'></div>
 
         <div v-if="currentView === 'timeGridWeek'" class="calendar-legend">
@@ -76,8 +91,8 @@
                 <div class="legend-color-box" style="background-color: #f4f4f5;"></div>
                 <span>非服務時段</span>
             </div>
-						<div class="legend-item">
-                <div class="legend-color-box" style="background-color: #ffdc2826;"></div>
+            <div class="legend-item">
+                <div class="legend-color-box" style="background-color: #fcf8e3;"></div>
                 <span>當日</span>
             </div>
         </div>
@@ -147,7 +162,7 @@
                 availableSlotsConfig: [],
                 calendar: null,
                 selectedDate: null,
-                booking: { 
+                booking: {
                     date: '',
                     time: '',
                     service: '',
@@ -165,7 +180,6 @@
                     const startTime = new Date(startTimeStr);
                     const endTime = new Date(startTime.getTime() + 30 * 60000);
                     return {
-                        title: '已被預約',
                         start: startTime,
                         end: endTime,
                         display: 'background',
@@ -179,7 +193,7 @@
                         groupId: 'availableSlots',
                         startTime: slot.start,
                         endTime: slot.end,
-                        daysOfWeek: [ slot.day == 7 ? 0 : slot.day ],
+                        daysOfWeek: [ slot.day - 1 ],
                         display: 'background',
                         color: '#dcfce7',
                         classNames: ['available-slot']
@@ -265,18 +279,44 @@
                     slotMaxTime: "22:00:00",
                     viewDidMount: (info) => {
                         this.currentView = info.view.type;
+                        this.updateViewFormats();
+                    },
+                    titleFormat: {
+                        year: 'numeric',
+                        month: '2-digit'
+                    },
+                    slotLabelFormat: {
+                        hour: '2-digit',
+                        minute: '2-digit',
+                        hour12: false,
+                        omitZeroMinute: false,
+                        locale: 'en'
                     }
                 });
                 this.calendar.render();
             },
+            updateViewFormats() {
+                if (this.currentView === 'timeGridWeek') {
+                    this.calendar.setOption('dayHeaderFormat', {
+                        month: 'numeric',
+                        day: 'numeric',
+                        omitCommas: true
+                    });
+                } else {
+                    this.calendar.setOption('dayHeaderFormat', {
+                        weekday: 'short'
+                    });
+                }
+            },
             updateCalendarLayout() {
                 this.isMobileView = window.innerWidth <= 600;
                 let newToolbarOptions;
-                if (this.isMobileView) {
-                    newToolbarOptions = { left: 'prev,next', center: 'title', right: 'today' };
-                } else {
-                    newToolbarOptions = { left: 'prev,next today', center: 'title', right: 'dayGridMonth,timeGridWeek' };
-                }
+                // if (this.isMobileView) {
+                //     newToolbarOptions = { left: 'prev,next', center: 'title', right: 'today' };
+                // } else {
+                //     newToolbarOptions = { left: 'prev,next today', center: 'title', right: 'dayGridMonth,timeGridWeek' };
+                // }
+								newToolbarOptions = { left: 'prev,next today', center: 'title', right: 'dayGridMonth,timeGridWeek' };
                 this.calendar.setOption('headerToolbar', newToolbarOptions);
             },
             handleDateClick(info) {

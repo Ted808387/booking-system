@@ -113,7 +113,6 @@
                 if (daySlotsConfig.length === 0) return [];
 
                 const allSlots = [];
-								console.log(this.bookedTimes)
                 daySlotsConfig.forEach(slot => {
                     let currentTime = new Date(`${this.selectedDate}T${slot.start}`);
                     const endTime = new Date(`${this.selectedDate}T${slot.end}`);
@@ -121,7 +120,6 @@
                     while (currentTime < endTime) {
                         const timeStr = currentTime.toTimeString().substring(0, 5);
                         const fullDateTimeStr = `${this.selectedDate}T${timeStr}`;
-												console.log(fullDateTimeStr)
 
                         allSlots.push({
                             time: timeStr,
@@ -189,7 +187,8 @@
                 });
                 this.calendar.render();
             },
-            handleDateClick(info) {
+            handleDateClick(info) {	
+								console.log(info)
                 this.selectedDate = info.dateStr;
                 this.booking.date = info.dateStr;
                 this.booking.time = '';

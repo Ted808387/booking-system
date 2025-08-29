@@ -20,6 +20,44 @@
         .time-slots button:disabled { background: #eee; cursor: not-allowed; opacity: 0.6; }
         button[type="submit"] { width: 100%; padding: 12px; background: #28a745; color: #fff; border: none; border-radius: 5px; cursor: pointer; font-size: 16px; font-weight: bold; }
         button[type="submit"]:hover { background: #218838; }
+
+				/* --- 新增：響應式設計 - 手機版樣式 --- */
+        /* 當螢幕寬度小於等於 600px 時，套用以下樣式 */
+        @media (max-width: 600px) {
+            
+            /* 讓日曆左右更貼近螢幕邊緣 */
+            #app {
+                padding: 10px;
+            }
+
+            /* 縮小日曆標題的字體大小 */
+            .fc-header-toolbar .fc-toolbar-title {
+                font-size: 1em; /* em 是相對單位，會比原本的字體小 */
+            }
+
+            /* 縮小日曆左右按鈕和今天按鈕的內距和外距 */
+            .fc-header-toolbar .fc-button {
+                padding: 0.1em 0.3em; /* 上下0.3em, 左右0.5em */
+                margin: 0 2px; /* 左右外距縮小 */
+                font-size: 0.9em; /* 按鈕內的文字也縮小一點 */
+            }
+
+						.fc-direction-ltr .fc-toolbar > * > :not(:first-child) {
+								margin-left: 0;
+						}
+            
+            /* 如果覺得右邊的 月/週 按鈕太佔空間，可以考慮隱藏 */
+            .fc-header-toolbar .fc-dayGridMonth-button,
+            .fc-header-toolbar .fc-timeGridWeek-button {
+                /* display: none; */ /* 如果需要，可以取消此行的註解來隱藏按鈕 */
+            }
+
+            /* 預約表單的邊距也縮小一點 */
+            .booking-form {
+                margin: 10px auto;
+                padding: 15px;
+            }
+        }
     </style>
 
     <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
@@ -194,6 +232,7 @@
                 this.booking.time = '';
             },
             selectTime(time) {
+							console.log(time)
                 this.booking.time = time;
             },
             async submitBooking() {

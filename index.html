@@ -20,43 +20,36 @@
         .time-slots button:disabled { background: #eee; cursor: not-allowed; opacity: 0.6; }
         button[type="submit"] { width: 100%; padding: 12px; background: #28a745; color: #fff; border: none; border-radius: 5px; cursor: pointer; font-size: 16px; font-weight: bold; }
         button[type="submit"]:hover { background: #218838; }
+        .fc-bg-event.available-slot { opacity: 0.3; }
+        .calendar-legend {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 20px;
+            margin-top: 15px;
+            padding: 10px;
+            background-color: #f8f9fa;
+            border-radius: 8px;
+        }
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 14px;
+        }
+        .legend-color-box {
+            width: 18px;
+            height: 18px;
+            border-radius: 4px;
+            border: 1px solid rgba(0,0,0,0.1);
+        }
 
-				/* --- 新增：響應式設計 - 手機版樣式 --- */
-        /* 當螢幕寬度小於等於 600px 時，套用以下樣式 */
         @media (max-width: 600px) {
-            
-            /* 讓日曆左右更貼近螢幕邊緣 */
-            #app {
-                padding: 10px;
-            }
-
-            /* 縮小日曆標題的字體大小 */
-            .fc-header-toolbar .fc-toolbar-title {
-                font-size: 1em; /* em 是相對單位，會比原本的字體小 */
-            }
-
-            /* 縮小日曆左右按鈕和今天按鈕的內距和外距 */
-            .fc-header-toolbar .fc-button {
-                padding: 0.1em 0.3em; /* 上下0.3em, 左右0.5em */
-                margin: 0 2px; /* 左右外距縮小 */
-                font-size: 0.9em; /* 按鈕內的文字也縮小一點 */
-            }
-
-						.fc-direction-ltr .fc-toolbar > * > :not(:first-child) {
-								margin-left: 0;
-						}
-            
-            /* 如果覺得右邊的 月/週 按鈕太佔空間，可以考慮隱藏 */
-            .fc-header-toolbar .fc-dayGridMonth-button,
-            .fc-header-toolbar .fc-timeGridWeek-button {
-                /* display: none; */ /* 如果需要，可以取消此行的註解來隱藏按鈕 */
-            }
-
-            /* 預約表單的邊距也縮小一點 */
-            .booking-form {
-                margin: 10px auto;
-                padding: 15px;
-            }
+            #app { padding: 10px; }
+            .fc-header-toolbar .fc-toolbar-title { font-size: 1.25em; }
+            .fc-header-toolbar .fc-button { padding: 0.3em 0.5em; margin: 0 2px; font-size: 0.9em; }
+            .booking-form { margin: 10px auto; padding: 15px; }
+            .calendar-legend { flex-direction: column; gap: 10px; align-items: flex-start; }
         }
     </style>
 
@@ -70,10 +63,29 @@
         <h2 style="text-align: center;">預約日曆</h2>
         <div id='calendar'></div>
 
+        <div v-if="currentView === 'timeGridWeek'" class="calendar-legend">
+            <div class="legend-item">
+                <div class="legend-color-box" style="background-color: #dcfce7;"></div>
+                <span>可預約時段</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color-box" style="background-color: #ff9f89;"></div>
+                <span>已被預約</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color-box" style="background-color: #f4f4f5;"></div>
+                <span>非服務時段</span>
+            </div>
+						<div class="legend-item">
+                <div class="legend-color-box" style="background-color: #ffdc2826;"></div>
+                <span>當日</span>
+            </div>
+        </div>
+
         <div v-if="selectedDate" class="booking-form">
             <h3>預約 {{ selectedDate }}</h3>
             
-            <div class="time-slots">
+            <div class="time-slots" v-if="!booking.time">
                 <h4>選擇時段</h4>
                 <template v-if="availableTimeSlots.length > 0">
                     <button
@@ -89,7 +101,13 @@
                 </template>
                 <p v-else>{{ timeSlotMessage }}</p>
             </div>
-            <hr/>
+            
+            <div class="form-group" v-if="booking.time">
+                <label>已選時段</label>
+                <input type="text" :value="booking.time" readonly disabled style="background-color: #e9ecef; text-align: center;">
+            </div>
+
+            <hr v-if="booking.time"/>
 
             <form @submit.prevent="submitBooking">
                 <div class="form-group">
@@ -137,33 +155,59 @@
                     email: '',
                     phone: ''
                 },
+                isMobileView: false,
+                currentView: 'dayGridMonth',
             }
         },
         computed: {
+            bookedEvents() {
+                return this.bookedTimes.map(startTimeStr => {
+                    const startTime = new Date(startTimeStr);
+                    const endTime = new Date(startTime.getTime() + 30 * 60000);
+                    return {
+                        title: '已被預約',
+                        start: startTime,
+                        end: endTime,
+                        display: 'background',
+                        color: '#ff9f89'
+                    };
+                });
+            },
+            availableSlotsEvents() {
+                return this.availableSlotsConfig.map(slot => {
+                    return {
+                        groupId: 'availableSlots',
+                        startTime: slot.start,
+                        endTime: slot.end,
+                        daysOfWeek: [ slot.day == 7 ? 0 : slot.day ],
+                        display: 'background',
+                        color: '#dcfce7',
+                        classNames: ['available-slot']
+                    };
+                });
+            },
+            allCalendarEvents() {
+                return [ ...this.bookedEvents, ...this.availableSlotsEvents ];
+            },
             availableTimeSlots() {
                 if (!this.selectedDate) return [];
                 const dayOfWeekForSheet = new Date(this.selectedDate).getDay() + 1;
-
                 const daySlotsConfig = this.availableSlotsConfig.filter(
                     s => s.day == dayOfWeekForSheet
                 );
-
                 if (daySlotsConfig.length === 0) return [];
 
                 const allSlots = [];
                 daySlotsConfig.forEach(slot => {
                     let currentTime = new Date(`${this.selectedDate}T${slot.start}`);
                     const endTime = new Date(`${this.selectedDate}T${slot.end}`);
-                    
                     while (currentTime < endTime) {
                         const timeStr = currentTime.toTimeString().substring(0, 5);
                         const fullDateTimeStr = `${this.selectedDate}T${timeStr}`;
-
                         allSlots.push({
                             time: timeStr,
                             isBooked: this.bookedTimes.includes(fullDateTimeStr)
                         });
-
                         currentTime.setMinutes(currentTime.getMinutes() + 30);
                     }
                 });
@@ -199,13 +243,10 @@
                         this.services = data.services;
                         this.bookedTimes = data.bookedTimes;
                         this.availableSlotsConfig = data.availableSlots;
-                        
                         if (this.services.length > 0) {
                             this.booking.service = this.services[0].name;
                         }
-                    } else {
-                        throw new Error(data.message || '後端資料格式不正確');
-                    }
+                    } else { throw new Error(data.message || '後端資料格式不正確'); }
                 } catch (error) {
                     console.error('獲取初始資料失敗:', error);
                     this.showNotification('error', '載入失敗', '無法獲取預約資料，請檢查後端是否部署成功或網路連線。');
@@ -216,23 +257,68 @@
                 this.calendar = new FullCalendar.Calendar(calendarEl, {
                     initialView: 'dayGridMonth',
                     locale: 'zh-tw',
-                    headerToolbar: {
-                        left: 'prev,next today',
-                        center: 'title',
-                        right: 'dayGridMonth,timeGridWeek'
-                    },
-                    dateClick: this.handleDateClick
+                    headerToolbar: false,
+                    events: this.allCalendarEvents,
+                    dateClick: this.handleDateClick,
+                    allDaySlot: false,
+                    slotMinTime: "08:00:00",
+                    slotMaxTime: "22:00:00",
+                    viewDidMount: (info) => {
+                        this.currentView = info.view.type;
+                    }
                 });
                 this.calendar.render();
             },
-            handleDateClick(info) {	
-								console.log(info)
-                this.selectedDate = info.dateStr;
-                this.booking.date = info.dateStr;
-                this.booking.time = '';
+            updateCalendarLayout() {
+                this.isMobileView = window.innerWidth <= 600;
+                let newToolbarOptions;
+                if (this.isMobileView) {
+                    newToolbarOptions = { left: 'prev,next', center: 'title', right: 'today' };
+                } else {
+                    newToolbarOptions = { left: 'prev,next today', center: 'title', right: 'dayGridMonth,timeGridWeek' };
+                }
+                this.calendar.setOption('headerToolbar', newToolbarOptions);
+            },
+            handleDateClick(info) {
+                const clickedDateTime = info.date;
+                const dayOfWeek = new Date(clickedDateTime).getDay() + 1;
+                const clickedMinutes = clickedDateTime.getHours() * 60 + clickedDateTime.getMinutes();
+
+                const isClickable = this.availableSlotsConfig.some(slot => {
+                    if (slot.day != dayOfWeek) return false;
+                    const startMinutes = parseInt(slot.start.split(':')[0]) * 60 + parseInt(slot.start.split(':')[1]);
+                    const endMinutes = parseInt(slot.end.split(':')[0]) * 60 + parseInt(slot.end.split(':')[1]);
+                    return clickedMinutes >= startMinutes && clickedMinutes < endMinutes;
+                });
+
+                if (!info.allDay && !isClickable) {
+                    this.showNotification('info', '非服務時段', '請在亮綠色的可預約時段內點擊喔！');
+                    return;
+                }
+                
+                const dateStr = `${clickedDateTime.getFullYear()}-${String(clickedDateTime.getMonth() + 1).padStart(2, '0')}-${String(clickedDateTime.getDate()).padStart(2, '0')}`;
+                const timeStr = clickedDateTime.toTimeString().substring(0, 5);
+                const fullDateTimeStr = `${dateStr}T${timeStr}`;
+
+                if (this.bookedTimes.includes(fullDateTimeStr)) {
+                    this.showNotification('info', '此時段已被預約', '請選擇其他可用的時段。');
+                    return;
+                }
+
+                if (info.allDay) {
+                    this.selectedDate = dateStr;
+                    this.booking.date = dateStr;
+                    this.booking.time = '';
+                } else {
+                    this.selectedDate = dateStr;
+                    this.booking.date = dateStr;
+                    this.booking.time = timeStr;
+                    this.$nextTick(() => {
+                        document.querySelector('.booking-form')?.scrollIntoView({ behavior: 'smooth' });
+                    });
+                }
             },
             selectTime(time) {
-							console.log(time)
                 this.booking.time = time;
             },
             async submitBooking() {
@@ -242,18 +328,13 @@
                 }
                 
                 Swal.fire({
-                    title: '正在提交預約...',
-                    text: '請稍候',
-                    allowOutsideClick: false,
-                    didOpen: () => {
-                        Swal.showLoading();
-                    }
+                    title: '正在提交預約...', text: '請稍候',
+                    allowOutsideClick: false, didOpen: () => { Swal.showLoading(); }
                 });
 
                 try {
                     const response = await fetch(this.GAS_URL, {
-                        method: 'POST',
-                        body: new URLSearchParams(this.booking),
+                        method: 'POST', body: new URLSearchParams(this.booking),
                     });
                     const result = await response.json();
                     
@@ -262,13 +343,9 @@
                         this.showNotification('success', '預約成功！', '我們將盡快與您確認，謝謝。');
                         
                         this.bookedTimes.push(`${this.booking.date}T${this.booking.time}`);
-                        this.booking.name = '';
-                        this.booking.email = '';
-                        this.booking.phone = '';
+                        this.booking.name = ''; this.booking.email = ''; this.booking.phone = '';
                         this.selectedDate = null;
-                    } else {
-                        throw new Error(result.message);
-                    }
+                    } else { throw new Error(result.message); }
                 } catch (error) {
                     Swal.close();
                     this.showNotification('error', '預約失敗', error.message);
@@ -276,8 +353,14 @@
             }
         },
         mounted() {
-            this.fetchInitialData();
-            this.initializeCalendar();
+            this.fetchInitialData().then(() => {
+                this.initializeCalendar();
+                this.updateCalendarLayout();
+                window.addEventListener('resize', this.updateCalendarLayout);
+            });
+        },
+        beforeUnmount() {
+            window.removeEventListener('resize', this.updateCalendarLayout);
         }
     }).mount('#app');
 </script>
